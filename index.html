@@ -3,455 +3,350 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>704-904 | 我們的國中時光紀錄</title>
+    <title>704-904 | 我們的國中時光紀錄 (管理員版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDKs -->
+    <!-- 引入 Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, deleteDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // --- 🔑 Supabase 設定區 ---
+        const SUPABASE_URL = 'https://piovrdifroesqwozwtnm.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_r-d4qj2CE27ZJjMuHEP1uA_7GWFiSp8'; 
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --- GitHub 部署手動設定區 ---
-        // 如果你在 GitHub 上執行，請到 Firebase 控制台複製你的 SDK 設定貼在下方
-        // 如果是在此預覽環境，則會自動使用 __firebase_config
-        const fallbackConfig = {
-            apiKey: "你的API_KEY",
-            authDomain: "你的專案ID.firebaseapp.com",
-            projectId: "你的專案ID",
-            storageBucket: "你的專案ID.firebasestorage.app",
-            messagingSenderId: "你的發送者ID",
-            appId: "你的APP_ID"
-        };
+        // 管理員密碼設定
+        const ADMIN_PASSWORD = 'admin04'; 
 
-        let firebaseConfig;
-        try {
-            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : fallbackConfig;
-        } catch (e) {
-            firebaseConfig = fallbackConfig;
+        // 核心狀態
+        let isAdmin = localStorage.getItem('isClassAdmin') === 'true';
+        let siteSettings = { siteTitle: "青春編年史", siteSubtitle: "那些年，我們在 04 班一起度過的歲月" };
+        let memories = { '704': [], '804': [], '904': [] };
+        let capsules = [];
+        window.currentBoard = '704';
+
+        // 初始化：從雲端抓取所有資料
+        async function initData() {
+            try {
+                const [memRes, capRes] = await Promise.all([
+                    supabase.from('memories').select('*').order('created_at', { ascending: false }),
+                    supabase.from('capsules').select('*').order('created_at', { ascending: false })
+                ]);
+                
+                if (memRes.data) {
+                    Object.keys(memories).forEach(k => memories[k] = []);
+                    memRes.data.forEach(m => {
+                        if (memories[m.grade]) memories[m.grade].push(m);
+                    });
+                }
+                if (capRes.data) capsules = capRes.data;
+
+                window.updateUI();
+                window.renderBoardGrid();
+            } catch (err) {
+                console.error("雲端同步失敗:", err);
+            }
         }
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-class-memories'; 
-        // --------------------------
-
-        // 核心狀態管理
-        let siteSettings = {
-            siteTitle: "青春編年史",
-            siteSubtitle: "那些年，我們在 04 班一起度過的歲月",
-            card7Title: "啟程：704", card7Desc: "那年夏天，我們帶著青澀的笑容第一次遇見...",
-            card8Title: "熱血：804", card8Desc: "操場上的吶喊、比賽的汗水，都是成長的印記...",
-            card9Title: "承諾：904", card9Desc: "最後的一年，所有的不捨都化作邁向未來的力量..."
-        };
-        let memories = { '704': [], '804': [], '904': [], '隱藏回憶': [] };
-        let capsules = [];
-        let videos = [{ id: 1, title: "全班最難忘的瞬間", url: "https://www.youtube.com/embed/dQw4w9WgXcQ" }];
-        let user = null;
-
-        window.updateUI = function() {
-            Object.keys(siteSettings).forEach(id => { 
-                const el = document.getElementById(id);
-                if(el) el.innerText = siteSettings[id]; 
-            });
-            if (typeof window.renderVideos === 'function') window.renderVideos();
-            if (typeof window.renderCapsules === 'function') window.renderCapsules();
-        };
-
-        const initAuth = async () => {
-            try {
-                // 如果是在外部環境（如 GitHub），通常沒有 __initial_auth_token，直接使用匿名登入
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth failed", error);
-                alert("資料庫連接失敗，請確認 Firebase 設定是否正確。");
+        // 管理員登入邏輯
+        window.tryLogin = function() {
+            const pass = prompt("請輸入管理員密碼：");
+            if (pass === ADMIN_PASSWORD) {
+                isAdmin = true;
+                localStorage.setItem('isClassAdmin', 'true');
+                alert("管理員登入成功！現在你可以上傳與刪除資料。");
+                location.reload();
+            } else if (pass !== null) {
+                alert("密碼錯誤！");
             }
         };
 
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (user) setupSync();
-        });
+        window.logout = function() {
+            isAdmin = false;
+            localStorage.removeItem('isClassAdmin');
+            alert("已登出管理模式。");
+            location.reload();
+        };
 
-        initAuth();
-
-        function setupSync() {
-            if (!user) return;
+        // UI 更新
+        window.updateUI = function() {
+            document.getElementById('siteTitle').innerText = siteSettings.siteTitle;
+            document.getElementById('siteSubtitle').innerText = siteSettings.siteSubtitle;
             
-            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'main'), (s) => {
-                if (s.exists()) { 
-                    siteSettings = { ...siteSettings, ...s.data() }; 
-                    window.updateUI(); 
-                } else { saveSettings(); }
-            }, (err) => console.error("Settings sync error", err));
+            // 根據權限顯示/隱藏元素
+            const adminTools = document.querySelectorAll('.admin-only');
+            adminTools.forEach(el => isAdmin ? el.classList.remove('hidden') : el.classList.add('hidden'));
+            
+            const loginBtn = document.getElementById('loginStatusBtn');
+            loginBtn.innerText = isAdmin ? "管理中 (登出)" : "04";
 
-            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'misc', 'content'), (s) => {
-                if (s.exists()) { 
-                    const data = s.data();
-                    window.videos = data.videos || videos;
-                    window.capsules = data.capsules || [];
-                    window.updateUI(); 
-                } else { saveMisc(); }
-            }, (err) => console.error("Misc sync error", err));
+            window.renderCapsules();
+        };
 
-            ['704', '804', '904', '隱藏回憶'].forEach(grade => {
-                const colRef = collection(db, 'artifacts', appId, 'public', 'data', `memories_${grade}`);
-                onSnapshot(colRef, (snapshot) => {
-                    const list = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
-                    list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-                    memories[grade] = list;
-                    if (window.currentBoard === grade && typeof window.renderBoardGrid === 'function') window.renderBoardGrid();
-                }, (err) => console.error(`${grade} sync error`, err));
-            });
-        }
+        // 渲染照片牆
+        window.renderBoardGrid = function() {
+            const grid = document.getElementById('boardGrid');
+            if (!grid) return;
+            const photos = memories[window.currentBoard] || [];
+            
+            if (photos.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-20 text-center"><p class="serif text-slate-400">目前還沒有這段時間的回憶...</p></div>`;
+                return;
+            }
 
-        async function saveSettings() { if (user) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'main'), siteSettings); }
-        async function saveMisc() { if (user) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'misc', 'content'), { videos: window.videos, capsules: window.capsules }); }
+            grid.innerHTML = photos.map(m => `
+                <div class="photo-frame group relative" style="transform: rotate(${(Math.random()*4-2)}deg)">
+                    <img src="${m.url}" class="w-full h-auto rounded-sm mb-3 shadow-inner object-cover max-h-80">
+                    <p class="text-[11px] font-medium text-slate-600 serif italic">${m.desc || '歲月靜好'}</p>
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="text-[8px] text-slate-300">${new Date(m.created_at).toLocaleDateString()}</span>
+                        ${isAdmin ? `<button onclick="deleteMemory('${m.id}')" class="text-[8px] text-rose-300 hover:text-rose-500">刪除</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        };
 
+        // 渲染時光膠囊 (任何人都能看，但只有管理員能刪)
+        window.renderCapsules = function() {
+            const list = document.getElementById('capsuleList');
+            if (!list) return;
+            list.innerHTML = capsules.length === 0 
+                ? `<p class="text-indigo-300 text-xs italic">還沒有人投遞膠囊...</p>`
+                : capsules.map(c => `
+                <div class="bg-white/5 border border-white/10 p-5 rounded-2xl hover:bg-white/10 transition group">
+                    <p class="text-sm text-indigo-50 leading-relaxed mb-3 italic">"${c.content}"</p>
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-[10px] text-indigo-300">@ ${c.name}</span>
+                        ${isAdmin ? `<button onclick="deleteCapsule('${c.id}')" class="text-rose-400 text-[10px]">✕</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        // 上傳與壓縮照片 (僅管理員可執行)
         window.uploadPhotos = async function() {
+            if (!isAdmin) return alert("只有管理員可以上傳照片。");
             const files = document.getElementById('photoFile').files;
             const desc = document.getElementById('photoDesc').value;
             const btn = document.getElementById('uploadBtn');
             
-            if(!user) return alert("系統尚未就緒，請稍候");
-            if(!files.length) return alert("請選擇照片");
-
+            if(!files.length) return alert("請選取照片喔！");
+            
             btn.disabled = true;
-            btn.innerText = "處理中...";
+            btn.innerText = "正在傳送到雲端...";
             
             try {
                 for(let f of files) {
-                    if (f.size > 10 * 1024 * 1024) {
-                        alert(`檔案 ${f.name} 太大了，請先縮小後再嘗試。`);
-                        continue;
-                    }
-
-                    const rawUrl = await new Promise((res, rej) => {
-                        const r = new FileReader(); 
-                        r.onload = e => res(e.target.result); 
-                        r.onerror = e => rej(e);
-                        r.readAsDataURL(f);
+                    const reader = new FileReader();
+                    const rawUrl = await new Promise(res => {
+                        reader.onload = e => res(e.target.result);
+                        reader.readAsDataURL(f);
                     });
-
                     const compressedUrl = await compressImage(rawUrl);
                     
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', `memories_${window.currentBoard}`), {
-                        url: compressedUrl, 
-                        desc: desc || "青春回憶", 
-                        timestamp: Date.now(), 
-                        date: new Date().toLocaleDateString()
-                    });
+                    const { error } = await supabase.from('memories').insert([
+                        { url: compressedUrl, desc: desc, grade: window.currentBoard }
+                    ]);
+                    if (error) throw error;
                 }
-                alert("上傳成功！");
+                alert("回憶已儲存！");
+                document.getElementById('photoFile').value = '';
+                document.getElementById('photoDesc').value = '';
+                initData();
             } catch (err) {
-                console.error("Upload error:", err);
-                alert("上傳失敗，可能是資料庫權限或圖片過大。");
+                alert("上傳失敗，請檢查金鑰或權限設定");
             } finally {
                 btn.disabled = false;
                 btn.innerText = "上傳回憶";
-                document.getElementById('photoFile').value = ''; 
-                document.getElementById('photoDesc').value = '';
             }
         };
 
-        window.deletePhoto = async function(docId) {
-            if (user && confirm("確定要刪除嗎？")) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', `memories_${window.currentBoard}`, docId));
+        // 寄出膠囊 (開放給所有人)
+        window.sendCapsule = async function() {
+            const name = document.getElementById('capName').value;
+            const content = document.getElementById('capText').value;
+            if(!name || !content) return alert("名字和內容都要寫喔！");
+
+            const { error } = await supabase.from('capsules').insert([{ name, content }]);
+            if (!error) {
+                document.getElementById('capName').value = '';
+                document.getElementById('capText').value = '';
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
+                initData();
             }
         };
 
-        window.siteSettings = siteSettings;
-        window.memories = memories;
-        window.videos = videos;
-        window.capsules = capsules;
-        window.saveSettings = saveSettings;
-        window.saveMisc = saveMisc;
-    </script>
-
-    <style>
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #fcfcfd; scroll-behavior: smooth; color: #1e293b; }
-        .serif { font-family: 'Noto Serif TC', serif; }
-        .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s ease-out; }
-        .reveal.active { opacity: 1; transform: translateY(0); }
-        .hover-card { transition: all 0.4s ease; background: white; border-radius: 2rem; border: 1px solid #f1f5f9; }
-        .hover-card:hover { transform: translateY(-10px); box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.15); }
-        .photo-frame { background: white; padding: 0.75rem 0.75rem 2.5rem 0.75rem; box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-        .corkboard { background: #fdf6e3; background-image: radial-gradient(#dcd5c1 1px, transparent 0); background-size: 20px 20px; }
-        .admin-section { display: none; }
-        .is-admin .admin-section { display: block; }
-        .admin-editable { cursor: pointer; }
-        .is-admin .admin-editable:hover { background: rgba(99, 102, 241, 0.1); border-radius: 4px; }
-        .video-container { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 1rem; overflow: hidden; background: #000; }
-        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-    </style>
-</head>
-<body class="no-scrollbar">
-    <nav class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm">04</div>
-                <span class="serif font-black text-lg text-slate-800 tracking-tight">青春紀事</span>
-            </div>
-            <div class="hidden md:flex items-center space-x-6">
-                <button onclick="openBoard('704')" class="text-xs font-bold text-slate-500 hover:text-indigo-600">704 回憶牆</button>
-                <button onclick="openBoard('804')" class="text-xs font-bold text-slate-500 hover:text-indigo-600">804 回憶牆</button>
-                <button onclick="openBoard('904')" class="text-xs font-bold text-slate-500 hover:text-indigo-600">904 回憶牆</button>
-            </div>
-            <div class="flex items-center space-x-4">
-                <button id="logoutBtn" class="admin-section text-rose-500 text-[10px] font-bold uppercase tracking-wider">登出後台</button>
-                <button id="loginBtn" class="text-[10px] font-black text-slate-400 hover:text-indigo-600 tracking-widest">管理員登入</button>
-            </div>
-        </div>
-    </nav>
-
-    <header class="py-24 px-6 text-center relative bg-slate-900 text-white overflow-hidden">
-        <div class="absolute inset-0 opacity-20"><img src="https://images.unsplash.com/photo-1541339907198-e08756ebafe3?auto=format&fit=crop&q=80" class="w-full h-full object-cover"></div>
-        <div class="relative z-10">
-            <h1 id="siteTitle" class="serif text-5xl md:text-7xl font-black mb-6 admin-editable" onclick="editSiteText('siteTitle')">青春編年史</h1>
-            <p id="siteSubtitle" class="text-indigo-200 text-lg md:text-xl italic admin-editable" onclick="editSiteText('siteSubtitle')">那些年，我們在 04 班一起度過的歲月</p>
-        </div>
-    </header>
-
-    <main class="max-w-6xl mx-auto px-6 py-16">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24 reveal">
-            <div class="group hover-card p-10 cursor-pointer" onclick="openBoard('704')">
-                <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white font-black mb-6 shadow-lg shadow-blue-200">7</div>
-                <h3 id="card7Title" class="serif text-2xl font-bold mb-3 admin-editable" onclick="event.stopPropagation(); editSiteText('card7Title')">啟程：704</h3>
-                <p id="card7Desc" class="text-slate-400 text-xs leading-relaxed admin-editable" onclick="event.stopPropagation(); editSiteText('card7Desc')">那年夏天，我們帶著青澀的笑容第一次遇見...</p>
-            </div>
-            <div class="group hover-card p-10 cursor-pointer" onclick="openBoard('804')">
-                <div class="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black mb-6 shadow-lg shadow-emerald-200">8</div>
-                <h3 id="card8Title" class="serif text-2xl font-bold mb-3 admin-editable" onclick="event.stopPropagation(); editSiteText('card8Title')">熱血：804</h3>
-                <p id="card8Desc" class="text-slate-400 text-xs leading-relaxed admin-editable" onclick="event.stopPropagation(); editSiteText('card8Desc')">操場上的吶喊、比賽的汗水，都是成長的印記...</p>
-            </div>
-            <div class="group hover-card p-10 cursor-pointer" onclick="openBoard('904')">
-                <div class="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center text-white font-black mb-6 shadow-lg shadow-orange-200">9</div>
-                <h3 id="card9Title" class="serif text-2xl font-bold mb-3 admin-editable" onclick="event.stopPropagation(); editSiteText('card9Title')">承諾：904</h3>
-                <p id="card9Desc" class="text-slate-400 text-xs leading-relaxed admin-editable" onclick="event.stopPropagation(); editSiteText('card9Desc')">最後的一年，所有的不捨都化作邁向未來的力量...</p>
-            </div>
-        </div>
-
-        <section class="mb-24 reveal">
-            <div class="flex items-center justify-between mb-10">
-                <h2 class="serif text-4xl font-black text-slate-800">影像回顧館</h2>
-                <button onclick="addVideoPrompt()" class="admin-section text-xs font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg">＋ 新增影片</button>
-            </div>
-            <div id="videoList" class="grid grid-cols-1 md:grid-cols-2 gap-10"></div>
-        </section>
-
-        <section id="time-capsule" class="reveal mb-16">
-            <div class="bg-indigo-900 rounded-[3rem] p-12 text-white overflow-hidden relative">
-                <div class="absolute top-0 right-0 p-12 opacity-10 text-9xl">✉️</div>
-                <div class="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-12">
-                    <div class="lg:col-span-1">
-                        <h2 class="serif text-4xl font-black mb-6">時光膠囊</h2>
-                        <div class="space-y-4">
-                            <input type="text" id="capName" placeholder="你的暱稱" class="w-full bg-white/10 border border-white/20 rounded-xl px-5 py-3 text-sm outline-none focus:bg-white/20">
-                            <textarea id="capText" placeholder="想說的話..." rows="4" class="w-full bg-white/10 border border-white/20 rounded-xl px-5 py-3 text-sm outline-none focus:bg-white/20 resize-none"></textarea>
-                            <button id="sendCapBtn" class="w-full bg-white text-indigo-900 font-black py-3 rounded-xl hover:bg-indigo-100 transition">寄出信件</button>
-                        </div>
-                    </div>
-                    <div id="capsuleList" class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto pr-4 no-scrollbar"></div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="py-12 border-t border-slate-100 bg-white">
-        <div class="max-w-6xl mx-auto px-6 text-center">
-            <div class="flex flex-col items-center space-y-4">
-                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-black text-xs">78</div>
-                <p class="text-slate-400 text-xs font-bold tracking-[0.2em] uppercase">dcjhs 78th 11304 Copyright © / All rights reserved</p>
-            </div>
-        </div>
-    </footer>
-
-    <div id="boardModal" class="fixed inset-0 z-50 hidden bg-slate-900/95 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-6xl h-[90vh] rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl">
-            <div class="px-8 py-6 flex justify-between items-center bg-indigo-600 text-white">
-                <h2 id="modalTitle" class="serif text-2xl font-black">回憶牆</h2>
-                <button onclick="closeBoard()" class="w-10 h-10 hover:bg-white/20 rounded-full flex items-center justify-center">✕</button>
-            </div>
-            <div class="flex-1 overflow-y-auto corkboard p-8 md:p-12">
-                <div class="admin-section mb-10 bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <input type="file" id="photoFile" accept="image/*" multiple class="text-xs file:bg-indigo-50 file:border-0 file:px-4 file:py-2 file:rounded-lg file:text-indigo-600 file:font-bold">
-                        <input type="text" id="photoDesc" placeholder="這張照片的故事是..." class="flex-1 border-b border-slate-200 outline-none focus:border-indigo-500 py-2 text-sm">
-                        <button id="uploadBtn" onclick="uploadPhotos()" class="bg-indigo-600 text-white px-8 py-2 rounded-lg font-bold text-sm">上傳回憶</button>
-                    </div>
-                </div>
-                <div id="boardGrid" class="columns-1 md:columns-2 lg:columns-3 gap-8 space-y-8"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="loginModal" class="fixed inset-0 z-[60] hidden bg-slate-950/90 flex items-center justify-center p-6">
-        <div class="bg-white p-10 rounded-3xl w-full max-w-xs text-center shadow-2xl">
-            <h3 class="serif text-xl font-black mb-6 uppercase">管理員驗證</h3>
-            <p id="loginMsg" class="text-rose-500 text-[10px] font-bold mb-4 h-4"></p>
-            <input type="password" id="adminPass" placeholder="輸入通關密碼" class="w-full bg-slate-50 border rounded-xl p-4 text-center tracking-[0.5em] mb-6 outline-none focus:ring-2 focus:ring-indigo-500">
-            <button id="verifyBtn" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition">驗證登入</button>
-            <button id="cancelLoginBtn" class="mt-4 text-slate-400 text-[10px] font-bold uppercase">取消</button>
-        </div>
-    </div>
-
-    <script>
-        window.currentBoard = '704';
-
-        const handleLogin = () => {
-            const passInput = document.getElementById('adminPass');
-            const msgEl = document.getElementById('loginMsg');
-            const targetPass = 'admin04'; 
-
-            if (passInput.value === targetPass) {
-                msgEl.innerText = "";
-                document.body.classList.add('is-admin');
-                const loginBtn = document.getElementById('loginBtn');
-                if (loginBtn) {
-                    loginBtn.innerText = "目前模式：編輯中";
-                    loginBtn.classList.add('text-indigo-600');
-                }
-                document.getElementById('loginModal').classList.add('hidden');
-                passInput.value = "";
-                confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
-                if (typeof window.updateUI === 'function') window.updateUI();
-                if (typeof window.renderBoardGrid === 'function') window.renderBoardGrid();
-            } else {
-                msgEl.innerText = "驗證碼不正確";
-                passInput.value = "";
-                passInput.focus();
-            }
+        // 刪除功能
+        window.deleteMemory = async function(id) {
+            if(!isAdmin) return;
+            if(!confirm("確定要移除這張照片嗎？")) return;
+            await supabase.from('memories').delete().eq('id', id);
+            initData();
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('loginBtn')?.addEventListener('click', () => {
-                document.getElementById('loginModal').classList.remove('hidden');
-                setTimeout(() => document.getElementById('adminPass')?.focus(), 200);
-            });
-            document.getElementById('verifyBtn')?.addEventListener('click', handleLogin);
-            document.getElementById('cancelLoginBtn')?.addEventListener('click', () => document.getElementById('loginModal').classList.add('hidden'));
-            document.getElementById('adminPass')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
-            document.getElementById('logoutBtn')?.addEventListener('click', () => {
-                document.body.classList.remove('is-admin');
-                const loginBtn = document.getElementById('loginBtn');
-                if (loginBtn) {
-                    loginBtn.innerText = "管理員登入";
-                    loginBtn.classList.remove('text-indigo-600');
-                }
-                if (typeof window.renderBoardGrid === 'function') window.renderBoardGrid();
-            });
-            document.getElementById('sendCapBtn')?.addEventListener('click', window.saveCapsule);
-        });
-
-        window.renderVideos = function() {
-            const list = document.getElementById('videoList');
-            if (!list) return;
-            const isAdmin = document.body.classList.contains('is-admin');
-            list.innerHTML = window.videos.map(v => `
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                    <div class="video-container"><iframe src="${v.url}" frameborder="0" allowfullscreen></iframe></div>
-                    <div class="mt-4 flex justify-between items-center px-2">
-                        <h4 class="serif font-bold text-slate-800">${v.title}</h4>
-                        ${isAdmin ? `<button onclick="removeVideo('${v.id}')" class="text-rose-400 text-[10px] font-bold">刪除影片</button>` : ''}
-                    </div>
-                </div>
-            `).join('');
+        window.deleteCapsule = async function(id) {
+            if(!isAdmin) return;
+            if(!confirm("確定要移除這則留言嗎？")) return;
+            await supabase.from('capsules').delete().eq('id', id);
+            initData();
         };
 
-        window.renderCapsules = function() {
-            const list = document.getElementById('capsuleList');
-            if (!list) return;
-            const isAdmin = document.body.classList.contains('is-admin');
-            if (!window.capsules || window.capsules.length === 0) {
-                list.innerHTML = '<p class="text-indigo-300 text-xs italic">尚無信件...</p>';
-                return;
-            }
-            list.innerHTML = window.capsules.map(c => `
-                <div class="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition">
-                    <p class="text-sm text-indigo-50 leading-relaxed mb-4 italic">"${c.text}"</p>
-                    <div class="flex justify-between items-end border-t border-white/5 pt-4">
-                        <div><p class="font-bold text-xs text-indigo-200">${c.name}</p><p class="text-[8px] text-indigo-400 opacity-60">${c.date}</p></div>
-                        ${isAdmin ? `<button onclick="deleteCapsule('${c.id}')" class="text-rose-400 text-[8px] font-bold">移除</button>` : ''}
-                    </div>
-                </div>
-            `).join('');
-        };
-
-        window.renderBoardGrid = function() {
-            const grid = document.getElementById('boardGrid');
-            if (!grid) return;
-            const isAdmin = document.body.classList.contains('is-admin');
-            const photos = window.memories[window.currentBoard] || [];
-            if (photos.length === 0) {
-                grid.innerHTML = `<p class="col-span-full text-center text-slate-400 serif py-20">等待你來填滿回憶...</p>`;
-                return;
-            }
-            grid.innerHTML = photos.map(m => `
-                <div class="photo-frame relative" style="transform: rotate(${(Math.random()*4-2).toFixed(1)}deg)">
-                    <img src="${m.url}" class="w-full h-auto rounded-sm mb-3" loading="lazy">
-                    <p class="text-[11px] font-medium text-slate-500 serif italic">${m.desc}</p>
-                    <p class="text-[8px] text-slate-300 mt-1">${m.date}</p>
-                    ${isAdmin ? `<button onclick="deletePhoto('${m.docId}')" class="absolute -top-2 -right-2 bg-rose-500 text-white w-6 h-6 rounded-full text-[10px] shadow-lg">✕</button>` : ''}
-                </div>
-            `).join('');
-        };
-
-        function editSiteText(key) {
-            if(!document.body.classList.contains('is-admin')) return;
-            const res = prompt("修改內容：", window.siteSettings[key]);
-            if(res) { 
-                window.siteSettings[key] = res; 
-                if (typeof window.saveSettings === 'function') window.saveSettings(); 
-            }
-        }
-
-        async function compressImage(base64Str) {
+        // 圖片壓縮輔助
+        async function compressImage(base64) {
             return new Promise(res => {
-                const img = new Image(); img.src = base64Str;
+                const img = new Image(); img.src = base64;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; 
-                    let width = img.width, height = img.height;
-                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    canvas.width = width; canvas.height = height;
+                    const MAX_WIDTH = 800;
+                    let w = img.width, h = img.height;
+                    if (w > MAX_WIDTH) { h *= MAX_WIDTH / w; w = MAX_WIDTH; }
+                    canvas.width = w; canvas.height = h;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    res(canvas.toDataURL('image/jpeg', 0.5));
+                    ctx.drawImage(img, 0, 0, w, h);
+                    res(canvas.toDataURL('image/jpeg', 0.6));
                 };
             });
         }
 
-        window.saveCapsule = async function() {
-            const nEl = document.getElementById('capName'), tEl = document.getElementById('capText');
-            if (!nEl || !tEl) return;
-            const n = nEl.value.trim(), t = tEl.value.trim();
-            if(!n || !t) return alert("請填寫名字和內容喔！");
-            const newCapsule = { id: Date.now().toString(), name: n, text: t, date: new Date().toLocaleDateString() };
-            window.capsules = [newCapsule, ...window.capsules];
-            if (typeof window.saveMisc === 'function') await window.saveMisc();
-            nEl.value = ''; tEl.value = '';
-            confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+        // 開啟照片牆
+        window.openBoard = function(grade) {
+            window.currentBoard = grade;
+            document.getElementById('modalTitle').innerText = `${grade} 班級回憶牆`;
+            document.getElementById('boardModal').classList.remove('hidden');
+            window.renderBoardGrid();
         };
+        window.closeBoard = () => document.getElementById('boardModal').classList.add('hidden');
 
-        window.removeVideo = function(id) { window.videos = window.videos.filter(v => v.id.toString() !== id.toString()); if (typeof window.saveMisc === 'function') window.saveMisc(); };
-        window.deleteCapsule = function(id) { window.capsules = window.capsules.filter(c => c.id.toString() !== id.toString()); if (typeof window.saveMisc === 'function') window.saveMisc(); };
-        window.openBoard = function(grade) { window.currentBoard = grade; const mt = document.getElementById('modalTitle'); if(mt) mt.innerText = `${grade} 回憶牆`; document.getElementById('boardModal')?.classList.remove('hidden'); window.renderBoardGrid(); };
-        window.closeBoard = function() { document.getElementById('boardModal')?.classList.add('hidden'); };
-        window.addVideoPrompt = function() { const t = prompt("標題："), u = prompt("YouTube Embed URL："); if(t && u) { window.videos.push({ id: Date.now().toString(), title: t, url: u }); if (typeof window.saveMisc === 'function') window.saveMisc(); } };
-
-        window.onload = () => {
-            const obs = new IntersectionObserver(e => e.forEach(i => { if(i.isIntersecting) i.target.classList.add('active'); }));
-            document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
-        };
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            initData();
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) entry.target.classList.add('active');
+                });
+            });
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        });
     </script>
+
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #fcfcfd; color: #1e293b; scroll-behavior: smooth; }
+        .serif { font-family: 'Noto Serif TC', serif; }
+        .reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        .hover-card { transition: all 0.3s ease; border: 1px solid #f1f5f9; }
+        .hover-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.1); }
+        .photo-frame { background: white; padding: 0.8rem 0.8rem 2.5rem 0.8rem; box-shadow: 0 8px 15px rgba(0,0,0,0.05); }
+        .corkboard { background: #fdf6e3; background-image: radial-gradient(#dcd5c1 1px, transparent 0); background-size: 24px 24px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="no-scrollbar">
+
+    <!-- 頂部導覽列 -->
+    <nav class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+            <!-- 點擊此按鈕觸發登入/登出 -->
+            <button id="loginStatusBtn" onclick="isAdmin ? logout() : tryLogin()" class="w-12 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-[10px] hover:bg-indigo-700 transition">04</button>
+            <span class="serif font-black text-lg text-slate-800 tracking-tighter">704-904 青春紀事</span>
+        </div>
+        <div class="flex space-x-4 md:space-x-8">
+            <button onclick="openBoard('704')" class="text-[10px] font-black text-slate-500 hover:text-indigo-600 uppercase tracking-widest">704牆</button>
+            <button onclick="openBoard('804')" class="text-[10px] font-black text-slate-500 hover:text-indigo-600 uppercase tracking-widest">804牆</button>
+            <button onclick="openBoard('904')" class="text-[10px] font-black text-slate-500 hover:text-indigo-600 uppercase tracking-widest">904牆</button>
+        </div>
+    </nav>
+
+    <!-- 英雄區頭部 -->
+    <header class="py-32 px-6 text-center relative bg-slate-900 text-white overflow-hidden">
+        <div class="absolute inset-0 opacity-30 bg-[url('https://images.unsplash.com/photo-1523050853064-060477114b7f?auto=format&fit=crop&q=80')] bg-cover bg-center"></div>
+        <div class="relative z-10">
+            <h1 id="siteTitle" class="serif text-5xl md:text-7xl font-black mb-6 tracking-tight">青春編年史</h1>
+            <p id="siteSubtitle" class="text-indigo-200 text-lg md:text-xl font-light italic">那些年，我們在 04 班一起度過的歲月</p>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-20">
+        <!-- 核心章節卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mb-32 reveal">
+            <div class="hover-card bg-white p-10 rounded-[2.5rem] cursor-pointer" onclick="openBoard('704')">
+                <div class="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center text-white font-black mb-8 shadow-lg shadow-blue-100">7</div>
+                <h3 class="serif text-2xl font-bold mb-4 text-slate-800">啟程：七年級</h3>
+                <p class="text-slate-400 text-xs leading-relaxed">帶著青澀的書包，我們在這裡第一次交換姓名...</p>
+            </div>
+            <div class="hover-card bg-white p-10 rounded-[2.5rem] cursor-pointer" onclick="openBoard('804')">
+                <div class="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-white font-black mb-8 shadow-lg shadow-emerald-100">8</div>
+                <h3 class="serif text-2xl font-bold mb-4 text-slate-800">蛻變：八年級</h3>
+                <p class="text-slate-400 text-xs leading-relaxed">在操場的吶喊中，我們開始懂得什麼是團體...</p>
+            </div>
+            <div class="hover-card bg-white p-10 rounded-[2.5rem] cursor-pointer" onclick="openBoard('904')">
+                <div class="w-14 h-14 bg-orange-500 rounded-2xl flex items-center justify-center text-white font-black mb-8 shadow-lg shadow-orange-100">9</div>
+                <h3 class="serif text-2xl font-bold mb-4 text-slate-800">奔向：九年級</h3>
+                <p class="text-slate-400 text-xs leading-relaxed">最後的一百天，我們約定好在未來更高處見面...</p>
+            </div>
+        </div>
+
+        <!-- 時光膠囊區 (留言功能開放給所有人) -->
+        <section id="capsule-section" class="reveal">
+            <div class="bg-indigo-950 rounded-[4rem] p-10 md:p-16 text-white grid grid-cols-1 lg:grid-cols-3 gap-16 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-20 opacity-5 text-[15rem] serif">✉</div>
+                <div class="lg:col-span-1 relative z-10">
+                    <h2 class="serif text-4xl font-black mb-8">時光膠囊</h2>
+                    <div class="space-y-5">
+                        <div class="space-y-2">
+                            <label class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold ml-1">誰的來信</label>
+                            <input type="text" id="capName" placeholder="輸入你的暱稱" class="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:bg-white/20 transition">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold ml-1">想說的話</label>
+                            <textarea id="capText" placeholder="寫給未來的我們..." rows="5" class="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:bg-white/20 transition resize-none"></textarea>
+                        </div>
+                        <button onclick="sendCapsule()" class="w-full bg-white text-indigo-900 font-black py-4 rounded-2xl hover:bg-indigo-50 transition shadow-xl shadow-indigo-900/20">投遞膠囊</button>
+                    </div>
+                </div>
+                <div id="capsuleList" class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto no-scrollbar pr-4"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 回憶牆彈窗 -->
+    <div id="boardModal" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-6xl h-[90vh] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl relative">
+            <div class="px-10 py-8 flex justify-between items-center bg-indigo-600 text-white">
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 bg-red-400 rounded-full"></div>
+                    <h2 id="modalTitle" class="serif text-2xl font-black">回憶牆</h2>
+                </div>
+                <button onclick="closeBoard()" class="w-12 h-12 hover:bg-white/10 rounded-full flex items-center justify-center text-xl transition">✕</button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto corkboard p-8 md:p-16">
+                <!-- 上傳區 (僅管理員顯示) -->
+                <div class="admin-only hidden mb-16 bg-white/80 backdrop-blur p-8 rounded-3xl border border-indigo-100 flex flex-col md:flex-row gap-6 items-center shadow-sm">
+                    <div class="flex-1 w-full text-center md:text-left">
+                        <p class="text-indigo-600 font-bold text-xs mb-2">管理員模式：新增回憶</p>
+                        <input type="text" id="photoDesc" placeholder="為這張照片寫一句話..." class="w-full border-b-2 border-slate-100 py-3 text-sm outline-none focus:border-indigo-500 transition px-2">
+                    </div>
+                    <div class="flex items-center gap-4 w-full md:w-auto">
+                        <input type="file" id="photoFile" accept="image/*" multiple class="text-[10px] text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <button id="uploadBtn" onclick="uploadPhotos()" class="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-xs whitespace-nowrap hover:bg-indigo-700 transition">上傳回憶</button>
+                    </div>
+                </div>
+
+                <!-- 照片展示區 -->
+                <div id="boardGrid" class="columns-1 sm:columns-2 lg:columns-3 gap-10 space-y-10 pb-20"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="py-20 border-t border-slate-100 bg-white">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+            <p class="serif text-slate-800 font-bold text-xl mb-4">我們在 04 班的每一天，都值得被記錄。</p>
+            <p class="text-slate-400 text-[10px] font-bold tracking-[0.3em] uppercase tracking-widest">Graduation is not the end, it's just a pause.</p>
+        </div>
+    </footer>
+
 </body>
 </html>

@@ -14,11 +14,30 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, deleteDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // --- GitHub 部署手動設定區 ---
+        // 如果你在 GitHub 上執行，請到 Firebase 控制台複製你的 SDK 設定貼在下方
+        // 如果是在此預覽環境，則會自動使用 __firebase_config
+        const fallbackConfig = {
+            apiKey: "你的API_KEY",
+            authDomain: "你的專案ID.firebaseapp.com",
+            projectId: "你的專案ID",
+            storageBucket: "你的專案ID.firebasestorage.app",
+            messagingSenderId: "你的發送者ID",
+            appId: "你的APP_ID"
+        };
+
+        let firebaseConfig;
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : fallbackConfig;
+        } catch (e) {
+            firebaseConfig = fallbackConfig;
+        }
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-class-memories'; 
+        // --------------------------
 
         // 核心狀態管理
         let siteSettings = {
@@ -33,7 +52,6 @@
         let videos = [{ id: 1, title: "全班最難忘的瞬間", url: "https://www.youtube.com/embed/dQw4w9WgXcQ" }];
         let user = null;
 
-        // 定義 UI 更新函式並掛載到 window
         window.updateUI = function() {
             Object.keys(siteSettings).forEach(id => { 
                 const el = document.getElementById(id);
@@ -43,9 +61,9 @@
             if (typeof window.renderCapsules === 'function') window.renderCapsules();
         };
 
-        // 初始化驗證 (RULE 3)
         const initAuth = async () => {
             try {
+                // 如果是在外部環境（如 GitHub），通常沒有 __initial_auth_token，直接使用匿名登入
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -53,6 +71,7 @@
                 }
             } catch (error) {
                 console.error("Auth failed", error);
+                alert("資料庫連接失敗，請確認 Firebase 設定是否正確。");
             }
         };
 
@@ -66,16 +85,13 @@
         function setupSync() {
             if (!user) return;
             
-            // 1. 同步基礎設定 (RULE 1)
             onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'main'), (s) => {
                 if (s.exists()) { 
                     siteSettings = { ...siteSettings, ...s.data() }; 
                     window.updateUI(); 
-                }
-                else { saveSettings(); }
+                } else { saveSettings(); }
             }, (err) => console.error("Settings sync error", err));
 
-            // 2. 同步影片與膠囊
             onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'misc', 'content'), (s) => {
                 if (s.exists()) { 
                     const data = s.data();
@@ -85,7 +101,6 @@
                 } else { saveMisc(); }
             }, (err) => console.error("Misc sync error", err));
 
-            // 3. 同步回憶牆 (RULE 2)
             ['704', '804', '904', '隱藏回憶'].forEach(grade => {
                 const colRef = collection(db, 'artifacts', appId, 'public', 'data', `memories_${grade}`);
                 onSnapshot(colRef, (snapshot) => {
@@ -100,13 +115,12 @@
         async function saveSettings() { if (user) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'main'), siteSettings); }
         async function saveMisc() { if (user) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'misc', 'content'), { videos: window.videos, capsules: window.capsules }); }
 
-        // 優化後的上傳函式
         window.uploadPhotos = async function() {
             const files = document.getElementById('photoFile').files;
             const desc = document.getElementById('photoDesc').value;
             const btn = document.getElementById('uploadBtn');
             
-            if(!user) return alert("請先登入管理員帳號");
+            if(!user) return alert("系統尚未就緒，請稍候");
             if(!files.length) return alert("請選擇照片");
 
             btn.disabled = true;
@@ -114,7 +128,6 @@
             
             try {
                 for(let f of files) {
-                    // 檢查檔案大小是否超過初步限制（避免讀取過大的 base64 造成瀏覽器當掉）
                     if (f.size > 10 * 1024 * 1024) {
                         alert(`檔案 ${f.name} 太大了，請先縮小後再嘗試。`);
                         continue;
@@ -139,7 +152,7 @@
                 alert("上傳成功！");
             } catch (err) {
                 console.error("Upload error:", err);
-                alert("上傳失敗，可能是圖片太大了，請嘗試換一張或縮小後再試。");
+                alert("上傳失敗，可能是資料庫權限或圖片過大。");
             } finally {
                 btn.disabled = false;
                 btn.innerText = "上傳回憶";
@@ -178,8 +191,6 @@
         .video-container { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 1rem; overflow: hidden; background: #000; }
         .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* 按鈕禁用狀態樣式 */
         button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
@@ -211,7 +222,6 @@
     </header>
 
     <main class="max-w-6xl mx-auto px-6 py-16">
-        <!-- 導覽卡片 -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24 reveal">
             <div class="group hover-card p-10 cursor-pointer" onclick="openBoard('704')">
                 <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white font-black mb-6 shadow-lg shadow-blue-200">7</div>
@@ -230,7 +240,6 @@
             </div>
         </div>
 
-        <!-- 影片區 -->
         <section class="mb-24 reveal">
             <div class="flex items-center justify-between mb-10">
                 <h2 class="serif text-4xl font-black text-slate-800">影像回顧館</h2>
@@ -239,7 +248,6 @@
             <div id="videoList" class="grid grid-cols-1 md:grid-cols-2 gap-10"></div>
         </section>
 
-        <!-- 時光膠囊區 -->
         <section id="time-capsule" class="reveal mb-16">
             <div class="bg-indigo-900 rounded-[3rem] p-12 text-white overflow-hidden relative">
                 <div class="absolute top-0 right-0 p-12 opacity-10 text-9xl">✉️</div>
@@ -258,22 +266,15 @@
         </section>
     </main>
 
-    <!-- 頁腳版權區 -->
     <footer class="py-12 border-t border-slate-100 bg-white">
         <div class="max-w-6xl mx-auto px-6 text-center">
             <div class="flex flex-col items-center space-y-4">
                 <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-black text-xs">78</div>
-                <p class="text-slate-400 text-xs font-bold tracking-[0.2em] uppercase">
-                    dcjhs 78th 11304 Copyright © / All rights reserved
-                </p>
-                <div class="text-[10px] text-slate-300 font-medium italic">
-                    記錄每一刻屬於我們的 04 青春
-                </div>
+                <p class="text-slate-400 text-xs font-bold tracking-[0.2em] uppercase">dcjhs 78th 11304 Copyright © / All rights reserved</p>
             </div>
         </div>
     </footer>
 
-    <!-- 回憶牆彈窗 -->
     <div id="boardModal" class="fixed inset-0 z-50 hidden bg-slate-900/95 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-6xl h-[90vh] rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl">
             <div class="px-8 py-6 flex justify-between items-center bg-indigo-600 text-white">
@@ -293,7 +294,6 @@
         </div>
     </div>
 
-    <!-- 驗證彈窗 -->
     <div id="loginModal" class="fixed inset-0 z-[60] hidden bg-slate-950/90 flex items-center justify-center p-6">
         <div class="bg-white p-10 rounded-3xl w-full max-w-xs text-center shadow-2xl">
             <h3 class="serif text-xl font-black mb-6 uppercase">管理員驗證</h3>
@@ -307,7 +307,6 @@
     <script>
         window.currentBoard = '704';
 
-        // 強化的登入邏輯
         const handleLogin = () => {
             const passInput = document.getElementById('adminPass');
             const msgEl = document.getElementById('loginMsg');
@@ -324,7 +323,6 @@
                 document.getElementById('loginModal').classList.add('hidden');
                 passInput.value = "";
                 confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
-                
                 if (typeof window.updateUI === 'function') window.updateUI();
                 if (typeof window.renderBoardGrid === 'function') window.renderBoardGrid();
             } else {
@@ -334,19 +332,14 @@
             }
         };
 
-        // 綁定事件監聽器
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loginBtn')?.addEventListener('click', () => {
-                const msg = document.getElementById('loginMsg');
-                if (msg) msg.innerText = "";
                 document.getElementById('loginModal').classList.remove('hidden');
                 setTimeout(() => document.getElementById('adminPass')?.focus(), 200);
             });
-
             document.getElementById('verifyBtn')?.addEventListener('click', handleLogin);
             document.getElementById('cancelLoginBtn')?.addEventListener('click', () => document.getElementById('loginModal').classList.add('hidden'));
             document.getElementById('adminPass')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
-
             document.getElementById('logoutBtn')?.addEventListener('click', () => {
                 document.body.classList.remove('is-admin');
                 const loginBtn = document.getElementById('loginBtn');
@@ -356,7 +349,6 @@
                 }
                 if (typeof window.renderBoardGrid === 'function') window.renderBoardGrid();
             });
-
             document.getElementById('sendCapBtn')?.addEventListener('click', window.saveCapsule);
         });
 
@@ -422,27 +414,17 @@
             }
         }
 
-        // 強力壓縮函式，確保 base64 不會超出 1MB 限制
         async function compressImage(base64Str) {
             return new Promise(res => {
                 const img = new Image(); img.src = base64Str;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    // 為了確保不超過 Firebase 1MB 限制，將最大寬度設為 800
                     const MAX_WIDTH = 800; 
                     let width = img.width, height = img.height;
-                    
-                    if (width > MAX_WIDTH) { 
-                        height *= MAX_WIDTH / width; 
-                        width = MAX_WIDTH; 
-                    }
-                    
-                    canvas.width = width; 
-                    canvas.height = height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // 使用 0.5 的壓縮品質，這對於手機網頁觀看來說已經足夠清晰，且體積極小
                     res(canvas.toDataURL('image/jpeg', 0.5));
                 };
             });
@@ -453,10 +435,8 @@
             if (!nEl || !tEl) return;
             const n = nEl.value.trim(), t = tEl.value.trim();
             if(!n || !t) return alert("請填寫名字和內容喔！");
-            
             const newCapsule = { id: Date.now().toString(), name: n, text: t, date: new Date().toLocaleDateString() };
             window.capsules = [newCapsule, ...window.capsules];
-            
             if (typeof window.saveMisc === 'function') await window.saveMisc();
             nEl.value = ''; tEl.value = '';
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });

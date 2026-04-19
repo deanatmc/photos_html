@@ -23,7 +23,7 @@
         // 核心狀態管理
         let siteSettings = {
             siteTitle: "青春編年史",
-            siteSubtitle: "那些年，我們在 4 班一起度過的歲月",
+            siteSubtitle: "那些年，我們在 04 班一起度過的歲月",
             card7Title: "啟程：704", card7Desc: "那年夏天，我們帶著青澀的笑容第一次遇見...",
             card8Title: "熱血：804", card8Desc: "操場上的吶喊、比賽的汗水，都是成長的印記...",
             card9Title: "承諾：904", card9Desc: "最後的一年，所有的不捨都化作邁向未來的力量..."
@@ -100,20 +100,52 @@
         async function saveSettings() { if (user) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'main'), siteSettings); }
         async function saveMisc() { if (user) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'misc', 'content'), { videos: window.videos, capsules: window.capsules }); }
 
+        // 優化後的上傳函式
         window.uploadPhotos = async function() {
             const files = document.getElementById('photoFile').files;
             const desc = document.getElementById('photoDesc').value;
-            if(!user || !files.length) return alert("請選照片或確保已登入");
-            for(let f of files) {
-                const rawUrl = await new Promise(res => {
-                    const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(f);
-                });
-                const compressedUrl = await compressImage(rawUrl);
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', `memories_${window.currentBoard}`), {
-                    url: compressedUrl, desc: desc || "青春回憶", timestamp: Date.now(), date: new Date().toLocaleDateString()
-                });
+            const btn = document.getElementById('uploadBtn');
+            
+            if(!user) return alert("請先登入管理員帳號");
+            if(!files.length) return alert("請選擇照片");
+
+            btn.disabled = true;
+            btn.innerText = "處理中...";
+            
+            try {
+                for(let f of files) {
+                    // 檢查檔案大小是否超過初步限制（避免讀取過大的 base64 造成瀏覽器當掉）
+                    if (f.size > 10 * 1024 * 1024) {
+                        alert(`檔案 ${f.name} 太大了，請先縮小後再嘗試。`);
+                        continue;
+                    }
+
+                    const rawUrl = await new Promise((res, rej) => {
+                        const r = new FileReader(); 
+                        r.onload = e => res(e.target.result); 
+                        r.onerror = e => rej(e);
+                        r.readAsDataURL(f);
+                    });
+
+                    const compressedUrl = await compressImage(rawUrl);
+                    
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', `memories_${window.currentBoard}`), {
+                        url: compressedUrl, 
+                        desc: desc || "青春回憶", 
+                        timestamp: Date.now(), 
+                        date: new Date().toLocaleDateString()
+                    });
+                }
+                alert("上傳成功！");
+            } catch (err) {
+                console.error("Upload error:", err);
+                alert("上傳失敗，可能是圖片太大了，請嘗試換一張或縮小後再試。");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "上傳回憶";
+                document.getElementById('photoFile').value = ''; 
+                document.getElementById('photoDesc').value = '';
             }
-            document.getElementById('photoFile').value = ''; document.getElementById('photoDesc').value = '';
         };
 
         window.deletePhoto = async function(docId) {
@@ -146,6 +178,9 @@
         .video-container { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 1rem; overflow: hidden; background: #000; }
         .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* 按鈕禁用狀態樣式 */
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="no-scrollbar">
@@ -153,7 +188,6 @@
         <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-2">
                 <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm">04</div>
-                <!-- 已將 CHRONICLE 修改為 青春紀事 -->
                 <span class="serif font-black text-lg text-slate-800 tracking-tight">青春紀事</span>
             </div>
             <div class="hidden md:flex items-center space-x-6">
@@ -171,8 +205,8 @@
     <header class="py-24 px-6 text-center relative bg-slate-900 text-white overflow-hidden">
         <div class="absolute inset-0 opacity-20"><img src="https://images.unsplash.com/photo-1541339907198-e08756ebafe3?auto=format&fit=crop&q=80" class="w-full h-full object-cover"></div>
         <div class="relative z-10">
-            <h1 id="siteTitle" class="serif text-5xl md:text-7xl font-black mb-6 admin-editable" onclick="editSiteText('siteTitle')">704-904 | 我們的國中時光紀錄</h1>
-            <p id="siteSubtitle" class="text-indigo-200 text-lg md:text-xl italic admin-editable" onclick="editSiteText('siteSubtitle')">那些年，我們在 4 班一起度過的歲月</p>
+            <h1 id="siteTitle" class="serif text-5xl md:text-7xl font-black mb-6 admin-editable" onclick="editSiteText('siteTitle')">青春編年史</h1>
+            <p id="siteSubtitle" class="text-indigo-200 text-lg md:text-xl italic admin-editable" onclick="editSiteText('siteSubtitle')">那些年，我們在 04 班一起度過的歲月</p>
         </div>
     </header>
 
@@ -182,7 +216,7 @@
             <div class="group hover-card p-10 cursor-pointer" onclick="openBoard('704')">
                 <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white font-black mb-6 shadow-lg shadow-blue-200">7</div>
                 <h3 id="card7Title" class="serif text-2xl font-bold mb-3 admin-editable" onclick="event.stopPropagation(); editSiteText('card7Title')">啟程：704</h3>
-                <p id="card7Desc" class="text-slate-400 text-xs leading-relaxed admin-editable" onclick="event.stopPropagation(); editSiteText('card7Desc')">那年夏天，我們的第一次遇見...</p>
+                <p id="card7Desc" class="text-slate-400 text-xs leading-relaxed admin-editable" onclick="event.stopPropagation(); editSiteText('card7Desc')">那年夏天，我們帶著青澀的笑容第一次遇見...</p>
             </div>
             <div class="group hover-card p-10 cursor-pointer" onclick="openBoard('804')">
                 <div class="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black mb-6 shadow-lg shadow-emerald-200">8</div>
@@ -233,7 +267,7 @@
                     dcjhs 78th 11304 Copyright © / All rights reserved
                 </p>
                 <div class="text-[10px] text-slate-300 font-medium italic">
-                    記錄每一刻屬於我們 4 班的青春
+                    記錄每一刻屬於我們的 04 青春
                 </div>
             </div>
         </div>
@@ -251,7 +285,7 @@
                     <div class="flex flex-col md:flex-row gap-4">
                         <input type="file" id="photoFile" accept="image/*" multiple class="text-xs file:bg-indigo-50 file:border-0 file:px-4 file:py-2 file:rounded-lg file:text-indigo-600 file:font-bold">
                         <input type="text" id="photoDesc" placeholder="這張照片的故事是..." class="flex-1 border-b border-slate-200 outline-none focus:border-indigo-500 py-2 text-sm">
-                        <button onclick="uploadPhotos()" class="bg-indigo-600 text-white px-8 py-2 rounded-lg font-bold text-sm">上傳回憶</button>
+                        <button id="uploadBtn" onclick="uploadPhotos()" class="bg-indigo-600 text-white px-8 py-2 rounded-lg font-bold text-sm">上傳回憶</button>
                     </div>
                 </div>
                 <div id="boardGrid" class="columns-1 md:columns-2 lg:columns-3 gap-8 space-y-8"></div>
@@ -264,7 +298,7 @@
         <div class="bg-white p-10 rounded-3xl w-full max-w-xs text-center shadow-2xl">
             <h3 class="serif text-xl font-black mb-6 uppercase">管理員驗證</h3>
             <p id="loginMsg" class="text-rose-500 text-[10px] font-bold mb-4 h-4"></p>
-            <input type="password" id="adminPass" placeholder="輸入管理員密碼" class="w-full bg-slate-50 border rounded-xl p-4 text-center tracking-[0.5em] mb-6 outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="password" id="adminPass" placeholder="輸入通關密碼" class="w-full bg-slate-50 border rounded-xl p-4 text-center tracking-[0.5em] mb-6 outline-none focus:ring-2 focus:ring-indigo-500">
             <button id="verifyBtn" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition">驗證登入</button>
             <button id="cancelLoginBtn" class="mt-4 text-slate-400 text-[10px] font-bold uppercase">取消</button>
         </div>
@@ -294,7 +328,7 @@
                 if (typeof window.updateUI === 'function') window.updateUI();
                 if (typeof window.renderBoardGrid === 'function') window.renderBoardGrid();
             } else {
-                msgEl.innerText = "密碼不正確";
+                msgEl.innerText = "驗證碼不正確";
                 passInput.value = "";
                 passInput.focus();
             }
@@ -388,18 +422,28 @@
             }
         }
 
+        // 強力壓縮函式，確保 base64 不會超出 1MB 限制
         async function compressImage(base64Str) {
             return new Promise(res => {
                 const img = new Image(); img.src = base64Str;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 1000;
+                    // 為了確保不超過 Firebase 1MB 限制，將最大寬度設為 800
+                    const MAX_WIDTH = 800; 
                     let width = img.width, height = img.height;
-                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                    canvas.width = width; canvas.height = height;
+                    
+                    if (width > MAX_WIDTH) { 
+                        height *= MAX_WIDTH / width; 
+                        width = MAX_WIDTH; 
+                    }
+                    
+                    canvas.width = width; 
+                    canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    res(canvas.toDataURL('image/jpeg', 0.6));
+                    
+                    // 使用 0.5 的壓縮品質，這對於手機網頁觀看來說已經足夠清晰，且體積極小
+                    res(canvas.toDataURL('image/jpeg', 0.5));
                 };
             });
         }

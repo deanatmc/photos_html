@@ -1,0 +1,19 @@
+```yaml
+name: Supabase High Frequency Wake Up
+on:
+  schedule:
+    # 每 20 分鐘執行一次 (分鐘 0, 15, 30, 45)
+    - cron: '*/20 * * * *'
+  workflow_dispatch: # 允許手動測試
+
+jobs:
+  ping_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake Up Supabase
+        run: |
+          # 訪問你的 GitHub Pages 網址
+          # 只要有訪問請求，網頁內的 JS 就會觸發 Supabase 查詢來保活
+          curl -I -s -L "https://deanatmc.github.io/photos_html/"
+
+```

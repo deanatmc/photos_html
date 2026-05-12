@@ -1,46 +1,36 @@
 ```yaml
-# 這是為了維持 GitHub Pages 活性與自動更新的腳本
 name: Keep Alive and Auto Update
 
 on:
-  schedule:
-    - cron: '0 0 * * *' # 每天凌晨 0 點自動執行一次
   push:
-    branches: [ main ] # 當你手動修改代碼並推送時也會執行
-  workflow_dispatch:     # 開啟「手動執行」按鈕，方便測試
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *' # 每天國際標準時間 00:00 自動執行
+  workflow_dispatch:      # 讓你可以手動點擊按鈕測試
 
 jobs:
-  update-code:
+  update:
     runs-on: ubuntu-latest
-    
-    # 這裡是最關鍵的！明確告訴 GitHub 這個任務有權力修改你的檔案
     permissions:
-      contents: write
-    
+      contents: write     # 明確要求寫入權限
     steps:
-      - name: 檢出代碼 (Checkout Code)
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          # 使用自動生成的 token 進行身份驗證
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 執行自動維護任務 (Auto Maintenance)
+      - name: Setup Git
         run: |
-          # 在 index.html 最後一行插入一個隱藏的時間標記，確保檔案內容有變動
-          # 這樣 Git 才會偵測到「有東西需要更新」
-          echo "<!-- 最後同步時間: $(date) -->" >> index.html
-          
-          # 設定 Git 使用者資訊（以 GitHub Actions Bot 的身分進行）
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
-          # 準備提交變更
-          git add index.html
-          
-          # 如果檔案有變動就提交，如果沒變動則顯示提示，不報錯
-          git commit -m "chore: 自動同步系統記憶 [skip ci]" || echo "今日無變動，無需提交"
-          
-          # 推送到 GitHub 儲存庫
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Make a small change to index.html
+        run: |
+          # 在 index.html 最後面加上一個隱藏的更新時間戳，確保檔案有變動
+          echo "<!-- Last Auto Update: $(date) -->" >> index.html
+
+      - name: Commit and Push
+        run: |
+          git add .
+          git commit -m "Automated keep-alive update" || echo "No changes to commit"
           git push
 
 ```

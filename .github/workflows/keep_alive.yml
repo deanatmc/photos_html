@@ -1,19 +1,46 @@
 ```yaml
-name: Supabase High Frequency Wake Up
+# 這是為了維持 GitHub Pages 活性與自動更新的腳本
+name: Keep Alive and Auto Update
+
 on:
   schedule:
-    # 每 15 分鐘執行一次 (分鐘 0, 15, 30, 45)
-    - cron: '*/15 * * * *'
-  workflow_dispatch: # 允許手動測試
+    - cron: '0 0 * * *' # 每天凌晨 0 點自動執行一次
+  push:
+    branches: [ main ] # 當你手動修改代碼並推送時也會執行
+  workflow_dispatch:     # 開啟「手動執行」按鈕，方便測試
 
 jobs:
-  ping_job:
+  update-code:
     runs-on: ubuntu-latest
+    
+    # 這裡是最關鍵的！明確告訴 GitHub 這個任務有權力修改你的檔案
+    permissions:
+      contents: write
+    
     steps:
-      - name: Wake Up Supabase
+      - name: 檢出代碼 (Checkout Code)
+        uses: actions/checkout@v4
+        with:
+          # 使用自動生成的 token 進行身份驗證
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 執行自動維護任務 (Auto Maintenance)
         run: |
-          # 訪問你的 GitHub Pages 網址
-          # 只要有訪問請求，網頁內的 JS 就會觸發 Supabase 查詢來保活
-          curl -I -s -L "https://deanatmc.github.io/photos_html/"
+          # 在 index.html 最後一行插入一個隱藏的時間標記，確保檔案內容有變動
+          # 這樣 Git 才會偵測到「有東西需要更新」
+          echo "<!-- 最後同步時間: $(date) -->" >> index.html
+          
+          # 設定 Git 使用者資訊（以 GitHub Actions Bot 的身分進行）
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 準備提交變更
+          git add index.html
+          
+          # 如果檔案有變動就提交，如果沒變動則顯示提示，不報錯
+          git commit -m "chore: 自動同步系統記憶 [skip ci]" || echo "今日無變動，無需提交"
+          
+          # 推送到 GitHub 儲存庫
+          git push
 
 ```

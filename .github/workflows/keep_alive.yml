@@ -1,40 +1,55 @@
+
 name: Keep Alive and Auto Update
 
 on:
   push:
     branches: [ main ]
   schedule:
+    # 每天凌晨 0 點執行一次 (UTC 0:00)
     - cron: '0 0 * * *' 
   workflow_dispatch:      # 提供手動測試按鈕
 
 jobs:
-  update:
+  update-and-ping:
     runs-on: ubuntu-latest
-    # 強制宣告權限，避免設定沒套用
     permissions:
       contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 確保取得完整歷史記錄
+          fetch-depth: 0
 
       - name: Setup Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Update index.html
+      - name: Update index.html (Keep Alive Tag)
         run: |
-          # 檢查 index.html 是否存在，並附加更新標籤
+          # 在 index.html 末尾附加時間戳記，確保產生 git 變動
           if [ -f index.html ]; then
-            echo "<!-- Refresh: $(date) -->" >> index.html
+            echo "<!-- Auto Update: $(date) -->" >> index.html
           fi
 
       - name: Commit and Push
         run: |
           git add index.html
           # 只有在有變動時才 commit，避免重複報錯
-          git commit -m "chore: nightly keep-alive update" || exit 0
+          git commit -m "chore: nightly keep-alive update [skip ci]" || exit 0
           git push origin main
+
+      - name: Ping Live Website
+        run: |
+          # 訪問你的正式網頁，確保 GitHub Pages 服務器紀錄流量
+          curl -A "Mozilla/5.0" -L "https://deanatmc.github.io/photos_html/" --silent --output /dev/null
+
+      - name: Ping Supabase Database
+        run: |
+          # 直接對你的 Supabase API 發送請求，雙重保險防止資料庫休眠
+          curl -X GET "https://huvoykalbkamobcwhvrl.supabase.co/rest/v1/memories?select=id&limit=1" \
+          -H "apikey: ${{ secrets.SB_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SB_KEY }}" \
+          --silent --output /dev/null
+
 

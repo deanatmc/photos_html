@@ -1,9 +1,10 @@
+```html
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>704-904 | 我們的國中時光紀錄_v2</title>
+    <title>704-904 | 我們的國中時光紀錄</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/iansui/iansui.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -16,12 +17,13 @@
 
         body {
             font-family: 'Iansui', cursive, sans-serif;
-            background-color: #0f172a; /* 深色底色讓特效更亮眼 */
+            background-color: #0f172a; 
             scroll-behavior: smooth;
             overflow-x: hidden;
             width: 100%;
             position: relative;
             color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
         }
 
         /* 夢幻動態背景 */
@@ -63,7 +65,7 @@
             to { background-position: 200% center; }
         }
 
-        /* 強化玻璃擬態卡片 */
+        /* 玻璃擬態卡片 */
         .glass-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
@@ -80,33 +82,6 @@
             box-shadow: 0 30px 60px rgba(99, 102, 241, 0.2);
         }
 
-        /* 卡片發光邊框特效 */
-        .entry-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            padding: 2px;
-            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.5), transparent);
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            opacity: 0;
-            transition: opacity 0.5s;
-        }
-        .entry-card:hover::before { opacity: 1; }
-
-        /* 常用連結互動效果 */
-        .link-card {
-            background: rgba(255, 255, 255, 0.03);
-            transition: all 0.3s ease;
-        }
-        .link-card:hover {
-            background: rgba(99, 102, 241, 0.2);
-            transform: scale(1.05);
-        }
-
         /* 視差粒子 */
         .particle {
             position: fixed;
@@ -117,7 +92,7 @@
             z-index: -1;
         }
 
-        /* 滾動揭示效果 */
+        /* 滾動揭示 */
         .reveal { opacity: 0; transform: translateY(40px) scale(0.95); transition: all 1s cubic-bezier(0.22, 1, 0.36, 1); }
         .reveal.active { opacity: 1; transform: translateY(0) scale(1); }
 
@@ -134,10 +109,17 @@
             transform: scale(1.05) rotate(0deg) !important;
             z-index: 10;
         }
+
+        /* Padlet 容器優化 */
+        .padlet-container {
+            border-radius: 2.5rem;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
-    <!-- 背景特效容器 -->
     <div class="bg-canvas">
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
@@ -148,9 +130,9 @@
 
     <nav class="sticky top-0 z-50 bg-slate-950/50 backdrop-blur-xl border-b border-white/5">
         <div class="max-w-7xl mx-auto px-6 h-16 md:h-20 flex items-center justify-between">
-            <div class="flex items-center space-x-3 group cursor-pointer">
+            <div class="flex items-center space-x-3 group cursor-pointer" onclick="location.reload()">
                 <div class="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-rose-500 rounded-xl flex items-center justify-center text-white font-black shadow-lg group-hover:rotate-[360deg] transition-transform duration-1000">04</div>
-                <span class="serif font-black text-xl md:text-2xl tracking-tighter text-white">CHRONICLE</span>
+                <span class="font-black text-xl md:text-2xl tracking-tighter text-white">CHRONICLE</span>
             </div>
             <div class="flex items-center space-x-4">
                 <button onclick="openLogin()" class="text-[10px] font-black tracking-widest text-slate-500 hover:text-indigo-400 transition uppercase">Master Key</button>
@@ -168,120 +150,131 @@
         <div class="relative z-10">
             <div class="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-8 backdrop-blur-md">
                 <span class="w-2 h-2 bg-indigo-400 rounded-full animate-ping"></span>
-                <span class="text-[10px] md:text-xs font-black tracking-[0.3em] uppercase text-indigo-300">Memory Database v4.0</span>
+                <span class="text-[10px] md:text-xs font-black tracking-[0.3em] uppercase text-indigo-300">15M Actions Syncing</span>
             </div>
-            <h1 class="serif text-5xl md:text-8xl lg:text-9xl font-black mb-6 tracking-tighter shimmer-text">青春編年史</h1>
+            <h1 class="text-5xl md:text-8xl lg:text-9xl font-black mb-6 tracking-tighter shimmer-text">青春編年史</h1>
             <p class="text-slate-400 text-sm md:text-2xl font-light tracking-[0.2em] max-w-2xl mx-auto leading-relaxed">
                 時光荏苒，歲月如歌。<br>
                 那些藏在課桌椅間的秘密，都成了閃耀的星辰。
             </p>
-            
-            <div class="admin-section mt-12">
-                <label class="bg-white/10 hover:bg-white/20 cursor-pointer px-8 py-4 rounded-full text-xs font-black transition-all backdrop-blur-md border border-white/10 uppercase tracking-widest">
-                    ✨ 更換背景氛圍 <input type="file" id="bannerInput" accept="image/*" class="hidden" onchange="updateBanner(this)">
-                </label>
-            </div>
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-6 md:px-8 py-20">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-32">
-            <!-- 704 -->
-            <div onclick="openBoard('704')" class="reveal entry-card glass-card cursor-pointer p-10 rounded-[3rem] group relative">
-                <div class="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
-                    <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45L18.85 19H5.15L12 5.45z"/></svg>
-                </div>
+            <div onclick="openBoard('704')" class="reveal entry-card glass-card cursor-pointer p-10 rounded-[3rem] group">
                 <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-8 shadow-2xl group-hover:scale-110 transition-transform">7</div>
-                <h3 class="serif text-3xl font-black mb-4 text-white">七年四班</h3>
+                <h3 class="text-3xl font-black mb-4 text-white">七年四班</h3>
                 <p class="text-slate-400 text-sm leading-relaxed">那一年的蟬鳴與新書包的味道，是故事的起點。</p>
             </div>
-            <!-- 804 -->
-            <div onclick="openBoard('804')" class="reveal entry-card glass-card cursor-pointer p-10 rounded-[3rem] group relative">
-                <div class="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
-                    <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                </div>
+            <div onclick="openBoard('804')" class="reveal entry-card glass-card cursor-pointer p-10 rounded-[3rem] group">
                 <div class="w-20 h-20 bg-gradient-to-br from-rose-500 to-purple-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-8 shadow-2xl group-hover:scale-110 transition-transform">8</div>
-                <h3 class="serif text-3xl font-black mb-4 text-white">八年四班</h3>
+                <h3 class="text-3xl font-black mb-4 text-white">八年四班</h3>
                 <p class="text-slate-400 text-sm leading-relaxed">在籃球場與福利社之間，我們揮灑著不羈的熱情。</p>
             </div>
-            <!-- 904 -->
-            <div onclick="openBoard('904')" class="reveal entry-card glass-card cursor-pointer p-10 rounded-[3rem] group relative">
-                <div class="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
-                    <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                </div>
+            <div onclick="openBoard('904')" class="reveal entry-card glass-card cursor-pointer p-10 rounded-[3rem] group">
                 <div class="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-8 shadow-2xl group-hover:scale-110 transition-transform">9</div>
-                <h3 class="serif text-3xl font-black mb-4 text-white">九年四班</h3>
+                <h3 class="text-3xl font-black mb-4 text-white">九年四班</h3>
                 <p class="text-slate-400 text-sm leading-relaxed">最後的衝刺與淚水，將化作通往未來的翅膀。</p>
             </div>
         </div>
 
-        <!-- 連結區 -->
-        <section class="reveal">
+        <section class="reveal mb-32">
             <div class="flex flex-col md:flex-row items-baseline justify-between mb-12 gap-4">
                 <div class="flex items-center space-x-4">
                     <div class="w-2 h-10 bg-gradient-to-b from-indigo-500 to-rose-500 rounded-full"></div>
-                    <h2 class="serif text-4xl md:text-6xl font-black text-white tracking-tighter">常用連結</h2>
+                    <h2 class="text-4xl md:text-6xl font-black text-white tracking-tighter">常用連結</h2>
                 </div>
-                <button onclick="toggleLinkEditor()" class="admin-section text-xs font-black text-indigo-400 tracking-widest uppercase border-b border-indigo-500/20 pb-1">Manage Connections</button>
+                <button onclick="toggleLinkEditor()" class="admin-section text-xs font-black text-indigo-400 tracking-widest uppercase">Manage Connections</button>
             </div>
-            
-            <div id="linkEditor" class="hidden mb-12 glass-card p-10 rounded-[2.5rem] border-2 border-dashed border-white/10">
+            <div id="linkEditor" class="hidden mb-12 glass-card p-10 rounded-[2.5rem]">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <input type="text" id="newLinkTitle" placeholder="標題名稱" class="bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-white">
-                    <input type="text" id="newLinkUrl" placeholder="URL 地址" class="bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-white">
+                    <input type="text" id="newLinkTitle" placeholder="標題名稱" class="bg-white/5 border border-white/10 p-4 rounded-2xl outline-none text-white">
+                    <input type="text" id="newLinkUrl" placeholder="URL 地址" class="bg-white/5 border border-white/10 p-4 rounded-2xl outline-none text-white">
                 </div>
-                <button onclick="saveNewLink()" class="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-indigo-500 transition-colors uppercase tracking-widest">Connect to Cloud</button>
+                <button onclick="saveNewLink()" class="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl uppercase tracking-widest">Connect to Cloud</button>
             </div>
-            
             <div id="linksList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+        </section>
+
+        <!-- Padlet 留言板區塊 -->
+        <section class="reveal mb-32">
+            <div class="flex items-center space-x-4 mb-12">
+                <div class="w-2 h-10 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></div>
+                <h2 class="text-4xl md:text-6xl font-black text-white tracking-tighter">心情留言板</h2>
+            </div>
+            <div class="glass-card p-4 md:p-8 rounded-[3rem]">
+                <div class="padlet-container">
+                    <iframe src="https://padlet.com/embed/kjdhh3k07j4sjj3m" frameborder="0" allow="camera;microphone;geolocation;display-capture;clipboard-write" style="width:100%;height:608px;display:block;padding:0;margin:0"></iframe>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <a href="https://padlet.com?ref=embed" target="_blank" class="text-[10px] text-slate-500 font-bold tracking-widest hover:text-indigo-400 transition-colors uppercase">Open in Padlet Fullscreen</a>
+                </div>
+            </div>
         </section>
     </main>
 
-    <!-- 相簿彈窗 -->
-    <div id="boardModal" class="fixed inset-0 z-[60] hidden bg-slate-950/80 backdrop-blur-3xl flex items-center justify-center p-0 md:p-8">
+    <!-- 相簿彈窗 (保持不變) -->
+    <div id="boardModal" class="fixed inset-0 z-[60] hidden bg-slate-950/80 backdrop-blur-3xl flex items-center justify-center">
         <div class="bg-slate-900 w-full h-full md:rounded-[3rem] overflow-hidden flex flex-col shadow-2xl transition-all opacity-0 scale-90" id="modalContent">
-            <div class="px-8 py-6 flex justify-between items-center border-b border-white/5 bg-slate-900/50">
-                <div class="flex items-center space-x-4">
-                    <div id="modalIcon" class="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center font-black text-xl shadow-lg">#</div>
-                    <h2 id="modalTitle" class="serif text-2xl font-black text-white">相簿內容</h2>
-                </div>
-                <button onclick="closeBoard()" class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-white/10 transition-all">✕</button>
+            <div class="px-8 py-6 flex justify-between items-center border-b border-white/5">
+                <h2 id="modalTitle" class="text-2xl font-black text-white tracking-widest">相簿內容</h2>
+                <button onclick="closeBoard()" class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white">✕</button>
             </div>
             <div class="flex-1 overflow-y-auto p-8 md:p-16">
-                <div class="admin-section mb-12 max-w-xl mx-auto glass-card p-10 rounded-[2.5rem] border border-indigo-500/30">
-                    <input type="file" id="fileInput" accept="image/*" multiple class="block w-full text-xs mb-6 text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-indigo-500 file:text-white file:font-black">
-                    <button onclick="submitMultipleItems()" id="uploadBtn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-indigo-500 transition-all uppercase tracking-widest">Upload Memories</button>
-                    <div id="uploadProgress" class="hidden mt-4 text-center text-xs font-black text-indigo-400 animate-pulse uppercase tracking-[0.3em]">Syncing to Eternity...</div>
+                <div class="admin-section mb-12 max-w-xl mx-auto glass-card p-10 rounded-[2.5rem]">
+                    <input type="file" id="fileInput" accept="image/*" multiple class="block w-full text-xs mb-6 text-slate-400">
+                    <button onclick="submitMultipleItems()" id="uploadBtn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase">Upload Memories</button>
                 </div>
-                
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8" id="boardGrid"></div>
             </div>
         </div>
     </div>
 
-    <!-- 驗證彈窗 -->
-    <div id="loginModal" class="fixed inset-0 z-[100] hidden bg-slate-950/60 backdrop-blur-2xl flex items-center justify-center p-6">
-        <div class="glass-card p-12 rounded-[3rem] w-full max-w-sm text-center border border-white/20">
-            <h3 class="serif text-3xl font-black mb-8 text-white">管理端進入</h3>
-            <input type="password" id="adminPass" placeholder="••••" class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl mb-8 text-center text-4xl outline-none focus:ring-2 focus:ring-indigo-500 text-white tracking-[0.5em]">
-            <button onclick="verifyLogin()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl mb-6 hover:bg-indigo-500 transition-colors uppercase tracking-widest">Verify Identity</button>
-            <button onclick="closeLogin()" class="text-slate-500 text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors">Abort Access</button>
+    <!-- 驗證彈窗 (保持不變) -->
+    <div id="loginModal" class="fixed inset-0 z-[100] hidden bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-6">
+        <div class="glass-card p-12 rounded-[3rem] w-full max-w-sm text-center">
+            <h3 class="text-3xl font-black mb-8 text-white">管理認證</h3>
+            <input type="password" id="adminPass" placeholder="••••" class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl mb-8 text-center text-4xl text-white outline-none">
+            <button onclick="verifyLogin()" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black uppercase">Verify</button>
+            <button onclick="closeLogin()" class="mt-6 text-slate-500 text-[10px] font-black uppercase tracking-widest">Abort</button>
         </div>
     </div>
 
     <footer class="py-24 text-center opacity-30">
-        <p class="text-white text-[10px] font-black tracking-[0.8em] uppercase leading-loose">Chronicle Archive v4.0 • Crafted for 704-904 • No one is ever forgotten</p>
+        <p class="text-white text-[10px] font-black tracking-[0.8em] uppercase">Chronicle Archive v5.1 • Protected by GitHub Actions</p>
     </footer>
 
     <script>
-        const SUPABASE_URL = 'https://huvoykalbkamobcwhvrl.supabase.co'; 
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1dm95a2FsYmthbW9iY3dodnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2OTIxMTEsImV4cCI6MjA5MjI2ODExMX0.oa_7N40X-fV0Um47F5W_A7r_LCpua_A0H8bp900B1qg';
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const S_URL = 'https://huvoykalbkamobcwhvrl.supabase.co'; 
+        const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1dm95a2FsYmthbW9iY3dodnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2OTIxMTEsImV4cCI6MjA5MjI2ODExMX0.oa_7N40X-fV0Um47F5W_A7r_LCpua_A0H8bp900B1qg';
+        const _supabase = supabase.createClient(S_URL, S_KEY);
 
         let currentGrade = '';
         let memoryData = {'704':[], '804':[], '904':[]};
 
-        // 鼠標跟隨特效
+        async function bootstrap() {
+            try {
+                const isAction = navigator.userAgent.includes('GitHub');
+                if (isAction) {
+                    await _supabase.from('links').select('id').limit(1);
+                    return;
+                }
+                const [m, l] = await Promise.all([
+                    _supabase.from('memories').select('*').order('created_at', { ascending: false }),
+                    _supabase.from('links').select('*').order('created_at', { ascending: false })
+                ]);
+                if (m.data) {
+                    memoryData = {'704':[], '804':[], '904':[]};
+                    m.data.forEach(item => { if(memoryData[item.grade]) memoryData[item.grade].push(item); });
+                }
+                if (l.data) renderLinks(l.data);
+                const { data: banner } = _supabase.storage.from('photos').getPublicUrl('site_banner.jpg');
+                if(banner) document.getElementById('bannerImg').src = banner.publicUrl + '?t=' + Date.now();
+                handleReveal();
+            } catch(e) {}
+        }
+
         const cursorGlow = document.getElementById('cursor-glow');
         document.addEventListener('mousemove', (e) => {
             cursorGlow.style.left = e.clientX + 'px';
@@ -289,16 +282,13 @@
             cursorGlow.style.opacity = '1';
         });
 
-        // 生成視差粒子
         const pContainer = document.getElementById('particles-container');
         for(let i=0; i<40; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
             const size = Math.random() * 3 + 1;
-            p.style.width = size + 'px';
-            p.style.height = size + 'px';
-            p.style.left = Math.random() * 100 + 'vw';
-            p.style.top = Math.random() * 100 + 'vh';
+            p.style.width = size + 'px'; p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + 'vw'; p.style.top = Math.random() * 100 + 'vh';
             p.setAttribute('data-speed', Math.random() * 0.05);
             pContainer.appendChild(p);
         }
@@ -317,64 +307,42 @@
             });
         }
 
-        async function fetchAllData() {
-            const { data: mems } = await _supabase.from('memories').select('*').order('created_at', { ascending: false });
-            if (mems) {
-                memoryData = {'704':[], '804':[], '904':[]};
-                mems.forEach(m => { if(memoryData[m.grade]) memoryData[m.grade].push(m); });
-            }
-            const { data: links } = await _supabase.from('links').select('*').order('created_at', { ascending: false });
-            if (links) renderLinks(links);
-
-            const { data: banner } = _supabase.storage.from('photos').getPublicUrl('site_banner.jpg');
-            if(banner) document.getElementById('bannerImg').src = banner.publicUrl + '?t=' + Date.now();
-            
-            if(currentGrade) renderGrid();
-            handleReveal();
-        }
-
-        async function updateBanner(input) {
-            const file = input.files[0];
-            if (!file) return;
-            await _supabase.storage.from('photos').upload('site_banner.jpg', file, { upsert: true });
-            location.reload();
-        }
-
-        async function saveNewLink() {
-            const title = document.getElementById('newLinkTitle').value.trim();
-            const url = document.getElementById('newLinkUrl').value.trim();
-            if(!title || !url) return;
-            await _supabase.from('links').insert([{ title, url }]);
-            fetchAllData();
-            document.getElementById('linkEditor').classList.add('hidden');
-        }
-
         function renderLinks(links) {
             document.getElementById('linksList').innerHTML = links.map(link => `
-                <div class="link-card glass-card p-6 rounded-2xl flex items-center justify-between group overflow-hidden">
-                    <a href="${link.url}" target="_blank" class="font-black text-slate-200 truncate text-xs hover:text-indigo-400 transition-colors uppercase tracking-tight z-10">${link.title}</a>
-                    <button onclick="deleteLink('${link.id}')" class="admin-section text-rose-400 hover:text-rose-600 text-xs ml-2 z-10">✕</button>
+                <div class="link-card glass-card p-6 rounded-2xl flex items-center justify-between group overflow-hidden relative">
+                    <a href="${link.url}" target="_blank" class="font-black text-slate-200 truncate text-xs hover:text-indigo-400 transition-colors uppercase z-10">${link.title}</a>
+                    <button onclick="deleteLink('${link.id}')" class="admin-section text-rose-400 text-xs ml-2 z-10">✕</button>
                     <div class="absolute inset-0 bg-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
             `).join('');
         }
 
-        async function deleteLink(id) {
-            if(!confirm('Delete this connection?')) return;
-            await _supabase.from('links').delete().eq('id', id);
-            fetchAllData();
+        async function saveNewLink() {
+            const title = document.getElementById('newLinkTitle').value;
+            const url = document.getElementById('newLinkUrl').value;
+            if(title && url) { await _supabase.from('links').insert([{ title, url }]); location.reload(); }
+        }
+
+        async function deleteLink(id) { if(confirm('Delete?')) { await _supabase.from('links').delete().eq('id', id); location.reload(); } }
+
+        function openBoard(grade) { 
+            currentGrade = grade; 
+            document.getElementById('boardModal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('modalContent').classList.replace('opacity-0', 'opacity-100');
+                document.getElementById('modalContent').classList.replace('scale-90', 'scale-100');
+            }, 50);
+            renderGrid(); 
         }
 
         function renderGrid() {
             const grid = document.getElementById('boardGrid');
             grid.innerHTML = (memoryData[currentGrade] || []).map((item, idx) => `
-                <div class="photo-frame bg-white p-3 shadow-2xl transition-all duration-500" style="transform: rotate(${(Math.random()*6-3).toFixed(1)}deg)">
-                    <div class="overflow-hidden aspect-square mb-3 bg-slate-100">
-                        <img src="${item.url}" class="w-full h-full object-cover cursor-zoom-in hover:scale-110 transition-transform duration-700" onclick="window.open('${item.url}', '_blank')">
-                    </div>
-                    <div class="flex justify-between items-center px-1">
+                <div class="photo-frame bg-white p-3 shadow-2xl" style="transform: rotate(${(Math.random()*6-3).toFixed(1)}deg)">
+                    <img src="${item.url}" class="w-full aspect-square object-cover cursor-zoom-in" onclick="window.open('${item.url}')">
+                    <div class="flex justify-between items-center mt-2 px-1">
                         <span class="text-[9px] font-black text-slate-400 italic">#${memoryData[currentGrade].length - idx}</span>
-                        <button onclick="deleteItem('${item.id}')" class="admin-section bg-rose-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center">✕</button>
+                        <button onclick="deleteItem('${item.id}')" class="admin-section bg-rose-500 text-white w-5 h-5 rounded-full text-[8px] flex items-center justify-center">✕</button>
                     </div>
                 </div>
             `).join('');
@@ -383,62 +351,28 @@
         async function submitMultipleItems() {
             const files = document.getElementById('fileInput').files;
             if (!files.length) return;
-            document.getElementById('uploadProgress').classList.remove('hidden');
             for (let file of files) {
                 const path = `img_${Date.now()}_${Math.random().toString(36).substr(2,5)}`;
-                const { error: upErr } = await _supabase.storage.from('photos').upload(path, file);
-                if (!upErr) {
+                const { error } = await _supabase.storage.from('photos').upload(path, file);
+                if (!error) {
                     const { data } = _supabase.storage.from('photos').getPublicUrl(path);
                     await _supabase.from('memories').insert([{ grade: currentGrade, url: data.publicUrl }]);
                 }
             }
-            document.getElementById('uploadProgress').classList.add('hidden');
-            fetchAllData();
+            location.reload();
         }
 
-        async function deleteItem(id) {
-            if(!confirm('Erase this memory?')) return;
-            await _supabase.from('memories').delete().eq('id', id);
-            fetchAllData();
-        }
-
-        function openBoard(grade) { 
-            currentGrade = grade; 
-            document.getElementById('modalTitle').innerText = `${grade} ARCHIVE`; 
-            document.getElementById('modalIcon').innerText = grade.charAt(0);
-            const modal = document.getElementById('boardModal');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                document.getElementById('modalContent').classList.replace('opacity-0', 'opacity-100');
-                document.getElementById('modalContent').classList.replace('scale-90', 'scale-100');
-            }, 50);
-            renderGrid(); 
-        }
-
-        function closeBoard() {
-            document.getElementById('modalContent').classList.replace('opacity-100', 'opacity-0');
-            document.getElementById('modalContent').classList.replace('scale-100', 'scale-90');
-            setTimeout(() => document.getElementById('boardModal').classList.add('hidden'), 500);
-        }
-
+        async function deleteItem(id) { if(confirm('Delete?')) { await _supabase.from('memories').delete().eq('id', id); location.reload(); } }
+        function closeBoard() { document.getElementById('boardModal').classList.add('hidden'); }
         function openLogin() { document.getElementById('loginModal').classList.remove('hidden'); }
         function closeLogin() { document.getElementById('loginModal').classList.add('hidden'); }
-        function verifyLogin() { 
-            if(document.getElementById('adminPass').value === 'admin04') { 
-                document.body.classList.add('is-admin'); 
-                document.body.classList.remove('is-user');
-                closeLogin(); 
-            } else { alert('Access Denied'); } 
-        }
+        function verifyLogin() { if(document.getElementById('adminPass').value === 'admin04') { document.body.classList.add('is-admin'); closeLogin(); } }
         function logout() { location.reload(); }
         function toggleLinkEditor() { document.getElementById('linkEditor').classList.toggle('hidden'); }
 
-        window.onload = () => {
-            fetchAllData();
-            setTimeout(handleReveal, 500);
-        };
+        window.onload = bootstrap;
     </script>
 </body>
-<!-- Refresh: Tue May 12 13:27:06 UTC 2026 -->
-<!-- Refresh: Tue May 12 13:29:59 UTC 2026 -->
-<!-- Refresh: Wed May 13 10:01:57 UTC 2026 -->
+</html>
+
+```

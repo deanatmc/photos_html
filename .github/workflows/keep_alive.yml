@@ -9,9 +9,9 @@ on:
   workflow_dispatch:      # 提供手動測試按鈕
 
 # 依據 GitHub 2026 官方最新規範設定環境變數：
-# 允許 Action 使用原本設定的 Node 20 版本運行，避免被強制推上 Node 24 而產生相容性警告
+# 強制將 Actions 執行環境升級至 Node 24，避免 Node 20 淘汰警告並提早安全遷移
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   update-and-ping:

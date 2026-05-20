@@ -41,7 +41,7 @@ jobs:
       - name: Ping Live Website
         run: |
           # 訪問你的正式網頁，確保 GitHub Pages 服務器紀錄流量
-          curl -A "Mozilla/5.0" -L "https://deanatmc.github.io/photos_html/" --silent --output /dev/null
+          curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" -L "https://deanatmc.github.io/photos_html/" --silent --output /dev/null
 
       - name: Ping Supabase Database
         run: |

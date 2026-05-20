@@ -8,9 +8,10 @@ on:
     - cron: '0 0 * * *' 
   workflow_dispatch:      # 提供手動測試按鈕
 
-# 依據 GitHub 2026 官方公告，強制將 Actions 執行環境升級至 Node 24，消除淘汰警告
+# 依據 GitHub 2026 官方最新規範設定環境變數：
+# 允許 Action 使用原本設定的 Node 20 版本運行，避免被強制推上 Node 24 而產生相容性警告
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
 
 jobs:
   update-and-ping:
@@ -54,4 +55,3 @@ jobs:
           -H "apikey: ${{ secrets.SB_KEY }}" \
           -H "Authorization: Bearer ${{ secrets.SB_KEY }}" \
           --silent --output /dev/null
-        
